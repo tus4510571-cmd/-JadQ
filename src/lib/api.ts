@@ -53,6 +53,15 @@ export const api = {
     return data as any; 
   },
 
+  updateOrderStatus: async (orderId: string, status: string): Promise<void> => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', orderId);
+    
+    if (error) throw error;
+  },
+
   updateItemStatus: async (itemId: string, status: ProductionStatus): Promise<void> => {
     // Also auto-update quantity completed if status is Ready To Ship or Shipped
     let updatePayload: any = { production_status: status };

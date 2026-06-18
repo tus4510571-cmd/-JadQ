@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Order, OrderItem } from "@/lib/types";
+import Link from "next/link";
 import { 
   ShoppingBag, 
   Package, 
@@ -103,9 +104,9 @@ export default function Dashboard() {
         <div className="glass-card rounded-2xl p-6">
            <h2 className="text-xl font-bold mb-6">Quick Actions</h2>
            <div className="space-y-3">
-             <button className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 transition-colors border border-slate-200 dark:border-slate-700">
+             <Link href="/orders/new" className="block w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 transition-colors border border-slate-200 dark:border-slate-700">
                + Create New Order
-             </button>
+             </Link>
              <button className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 transition-colors border border-slate-200 dark:border-slate-700">
                Scan QR Code
              </button>
