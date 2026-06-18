@@ -24,6 +24,10 @@ export default function NewOrderPage() {
     { design_number: "Design 1", sizes: { S: 0, M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0 } }
   ]);
 
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+
   useEffect(() => {
     api.getCustomers().then(setCustomers);
   }, []);
@@ -52,13 +56,29 @@ export default function NewOrderPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedCustomerId) {
-      alert("Please select a customer");
+    if (!isNewCustomer && !selectedCustomerId) {
+      alert("Please select a customer or create a new one");
+      return;
+    }
+    
+    if (isNewCustomer && !newCustomerName.trim()) {
+      alert("Please enter the new customer's name");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      let finalCustomerId = selectedCustomerId;
+      
+      if (isNewCustomer) {
+        const created = await api.addCustomer({
+          customer_name: newCustomerName,
+          phone: newCustomerPhone,
+          notes: ""
+        });
+        finalCustomerId = created.id;
+      }
+
       const orderItems: any[] = [];
       matrix.forEach(row => {
         SIZES.forEach(size => {
@@ -81,7 +101,7 @@ export default function NewOrderPage() {
       }
 
       await api.addOrder(
-        { order_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`, customer_id: selectedCustomerId, order_date: new Date().toISOString(), status: 'Pending' },
+        { order_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`, customer_id: finalCustomerId, order_date: new Date().toISOString(), status: 'Pending' },
         orderItems
       );
       
@@ -108,17 +128,51 @@ export default function NewOrderPage() {
       </div>
 
       <div className="glass-card rounded-2xl p-6">
-        <h2 className="text-xl font-bold mb-4">1. Customer Details</h2>
-        <select 
-          value={selectedCustomerId}
-          onChange={(e) => setSelectedCustomerId(e.target.value)}
-          className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="">Select a customer...</option>
-          {customers.map(c => (
-            <option key={c.id} value={c.id}>{c.customer_name} ({c.phone})</option>
-          ))}
-        </select>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">1. Customer Details</h2>
+          <button 
+            onClick={() => setIsNewCustomer(!isNewCustomer)}
+            className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+          >
+            {isNewCustomer ? "Select Existing Customer" : "+ Add New Customer"}
+          </button>
+        </div>
+        
+        {isNewCustomer ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+            <div>
+              <label className="block text-sm font-medium mb-1">Customer Name *</label>
+              <input 
+                type="text"
+                value={newCustomerName}
+                onChange={(e) => setNewCustomerName(e.target.value)}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="Enter name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Phone Number</label>
+              <input 
+                type="text"
+                value={newCustomerPhone}
+                onChange={(e) => setNewCustomerPhone(e.target.value)}
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="Enter phone"
+              />
+            </div>
+          </div>
+        ) : (
+          <select 
+            value={selectedCustomerId}
+            onChange={(e) => setSelectedCustomerId(e.target.value)}
+            className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Select a customer...</option>
+            {customers.map(c => (
+              <option key={c.id} value={c.id}>{c.customer_name} {c.phone ? `(${c.phone})` : ''}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="glass-card rounded-2xl p-6 overflow-x-auto">
