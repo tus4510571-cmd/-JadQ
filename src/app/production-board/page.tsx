@@ -23,7 +23,7 @@ const COLUMN_ICONS: Record<ProductionStatus, any> = {
   'Shipped': CheckCircle,
 };
 
-function SortableItem({ item }: { item: any }) {
+function SortableItem({ item, onUpdateQuantity }: { item: any, onUpdateQuantity: (id: string, q: number) => void }) {
   const {
     attributes,
     listeners,
@@ -41,6 +41,19 @@ function SortableItem({ item }: { item: any }) {
   };
 
   const progress = Math.round((item.quantity_completed / item.quantity_ordered) * 100);
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const val = window.prompt(`Update completed quantity for Size ${item.size} (0 - ${item.quantity_ordered}):`, item.quantity_completed.toString());
+    if (val !== null) {
+      const num = parseInt(val, 10);
+      if (!isNaN(num) && num >= 0 && num <= item.quantity_ordered) {
+        onUpdateQuantity(item.id, num);
+      } else {
+        alert("Invalid quantity. Please enter a valid number within the ordered range.");
+      }
+    }
+  };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} 
@@ -64,9 +77,14 @@ function SortableItem({ item }: { item: any }) {
       
       <div className="flex justify-between items-center text-sm font-medium">
         <span className="text-slate-600 dark:text-slate-400">Progress</span>
-        <span className={progress === 100 ? "text-emerald-500" : "text-primary-600"}>
+        <button 
+          onClick={handleEditClick}
+          onPointerDown={(e) => e.stopPropagation()} // Prevent drag conflict
+          className={`px-2 py-0.5 rounded transition-colors hover:bg-slate-100 dark:hover:bg-slate-700 ${progress === 100 ? "text-emerald-500" : "text-primary-600"}`}
+          title="Click to edit quantity"
+        >
           {item.quantity_completed} / {item.quantity_ordered}
-        </span>
+        </button>
       </div>
     </div>
   );
@@ -107,6 +125,23 @@ export default function ProductionBoard() {
     }
   };
 
+  const handleUpdateQuantity = async (itemId: string, quantity: number) => {
+    // Optimistic update
+    setItems((prev) => 
+      prev.map(i => i.id === itemId ? { ...i, quantity_completed: quantity } : i)
+    );
+    try {
+      await api.updateItemCompletedQuantity(itemId, quantity);
+      const updatedItems = await api.getOrderItems();
+      setItems(updatedItems);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update quantity");
+      const updatedItems = await api.getOrderItems();
+      setItems(updatedItems);
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
       <div className="mb-6">
@@ -136,7 +171,7 @@ export default function ProductionBoard() {
                 <SortableContext id={col} items={colItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
                   <div className="flex-1 p-3 overflow-y-auto space-y-3 min-h-[150px]">
                     {colItems.map(item => (
-                      <SortableItem key={item.id} item={item} />
+                      <SortableItem key={item.id} item={item} onUpdateQuantity={handleUpdateQuantity} />
                     ))}
                     {colItems.length === 0 && (
                       <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl opacity-50">
