@@ -62,16 +62,42 @@ export const api = {
     if (error) throw error;
   },
 
+  syncOrderStatusFromItems: async (orderId: string): Promise<void> => {
+    // Fetch all items for this order
+    const { data: items, error: fetchError } = await supabase
+      .from('order_items')
+      .select('production_status')
+      .eq('order_id', orderId);
+
+    if (fetchError || !items) throw fetchError || new Error("Items not found");
+
+    if (items.length === 0) return; // Should not happen, but safe check
+
+    const allShipped = items.every(item => item.production_status === 'Shipped');
+    const allReadyOrShipped = items.every(item => item.production_status === 'Ready To Ship' || item.production_status === 'Shipped');
+    const allPending = items.every(item => item.production_status === 'Pending');
+
+    let macroStatus = 'In Production';
+    if (allShipped) macroStatus = 'Shipped';
+    else if (allReadyOrShipped) macroStatus = 'Ready to Ship';
+    else if (allPending) macroStatus = 'Pending';
+
+    // Update order status
+    await supabase.from('orders').update({ status: macroStatus }).eq('id', orderId);
+  },
+
   updateItemStatus: async (itemId: string, status: ProductionStatus): Promise<void> => {
+    // First fetch the item to get quantity_ordered and order_id
+    const { data: item } = await supabase.from('order_items').select('quantity_ordered, order_id').eq('id', itemId).single();
+    if (!item) throw new Error("Item not found");
+
     // Also auto-update quantity completed if status is Ready To Ship or Shipped
     let updatePayload: any = { production_status: status };
     
     if (status === 'Ready To Ship' || status === 'Shipped') {
-      // First fetch the item to get quantity_ordered
-      const { data: item } = await supabase.from('order_items').select('quantity_ordered').eq('id', itemId).single();
-      if (item) {
-        updatePayload.quantity_completed = item.quantity_ordered;
-      }
+      updatePayload.quantity_completed = item.quantity_ordered;
+    } else if (status === 'Pending') {
+      updatePayload.quantity_completed = 0;
     }
 
     const { error } = await supabase
@@ -80,13 +106,16 @@ export const api = {
       .eq('id', itemId);
 
     if (error) throw error;
+
+    // Sync order status
+    await api.syncOrderStatusFromItems(item.order_id);
   },
 
   updateItemCompletedQuantity: async (itemId: string, quantity: number): Promise<void> => {
     // First get the item to check total ordered
     const { data: item, error: fetchError } = await supabase
       .from('order_items')
-      .select('quantity_ordered, production_status')
+      .select('quantity_ordered, production_status, order_id')
       .eq('id', itemId)
       .single();
     
@@ -97,6 +126,9 @@ export const api = {
 
     if (newCompleted === item.quantity_ordered) {
       newStatus = 'Ready To Ship';
+    } else if (newCompleted === 0 && item.production_status === 'Ready To Ship') {
+      // Revert if someone mistakenly set to 0 but it was ready to ship
+      newStatus = 'Pending';
     }
 
     const { error } = await supabase
@@ -108,6 +140,9 @@ export const api = {
       .eq('id', itemId);
 
     if (error) throw error;
+
+    // Sync order status
+    await api.syncOrderStatusFromItems(item.order_id);
   },
 
   addOrder: async (order: Omit<Order, 'id'>, items: Omit<OrderItem, 'id' | 'order_id'>[]): Promise<void> => {

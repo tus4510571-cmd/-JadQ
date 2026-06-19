@@ -59,35 +59,14 @@ export default function OrdersPage() {
                   <td className="px-6 py-4">{order.customer.customer_name}</td>
                   <td className="px-6 py-4 text-slate-500">{new Date(order.order_date).toLocaleDateString()}</td>
                   <td className="px-6 py-4">
-                    <select
-                      value={order.status}
-                      onChange={async (e) => {
-                        const newStatus = e.target.value;
-                        const originalOrders = [...orders];
-                        
-                        // Optimistic update
-                        setOrders(orders.map(o => o.id === order.id ? { ...o, status: newStatus } : o));
-                        
-                        try {
-                          await api.updateOrderStatus(order.id, newStatus);
-                        } catch (err) {
-                          console.error("Failed to update status", err);
-                          setOrders(originalOrders);
-                          alert("Failed to update status");
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500
-                        ${order.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800' : ''}
-                        ${order.status === 'In Production' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : ''}
-                        ${order.status === 'Ready to Ship' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800' : ''}
-                        ${order.status === 'Shipped' ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700' : ''}
-                      `}
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Production">In Production</option>
-                      <option value="Ready to Ship">Ready to Ship</option>
-                      <option value="Shipped">Shipped</option>
-                    </select>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium border
+                      ${order.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800' : ''}
+                      ${order.status === 'In Production' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : ''}
+                      ${order.status === 'Ready to Ship' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800' : ''}
+                      ${order.status === 'Shipped' ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700' : ''}
+                    `}>
+                      {order.status}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button className="text-primary-600 hover:text-primary-700 font-medium text-sm">View Details</button>
