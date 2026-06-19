@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { OrderItem, ProductionStatus } from "@/lib/types";
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Clock, Scissors, Printer, PenTool, CheckSquare, Package as PackageIcon, Truck, CheckCircle } from "lucide-react";
@@ -105,22 +105,44 @@ export default function ProductionBoard() {
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     
-    if (over && active.id !== over.id) {
-      // Find what column we dropped over. We are using the column name as the droppable ID.
-      const newStatus = over.id as ProductionStatus;
-      if (COLUMNS.includes(newStatus)) {
-        const itemId = active.id as string;
-        
-        // Optimistic update
-        setItems((prev) => 
-          prev.map(i => i.id === itemId ? { ...i, production_status: newStatus } : i)
-        );
+    if (over) {
+      // Find the destination column. It can be the column ID itself or an item inside the column
+      let newStatus: ProductionStatus | null = null;
+      
+      if (COLUMNS.includes(over.id as ProductionStatus)) {
+        // Dropped directly on the column
+        newStatus = over.id as ProductionStatus;
+      } else {
+        // Dropped on another item, find its column
+        const overItem = items.find(i => i.id === over.id);
+        if (overItem) {
+          newStatus = overItem.production_status as ProductionStatus;
+        }
+      }
 
-        // API update
-        await api.updateItemStatus(itemId, newStatus);
-        // refresh to get accurate quantities if it auto-completed
-        const updatedItems = await api.getOrderItems();
-        setItems(updatedItems);
+      if (newStatus && COLUMNS.includes(newStatus)) {
+        const itemId = active.id as string;
+        const activeItem = items.find(i => i.id === itemId);
+        
+        if (activeItem && activeItem.production_status !== newStatus) {
+          // Optimistic update
+          setItems((prev) => 
+            prev.map(i => i.id === itemId ? { ...i, production_status: newStatus! } : i)
+          );
+
+          // API update
+          try {
+            await api.updateItemStatus(itemId, newStatus);
+            // refresh to get accurate quantities if it auto-completed
+            const updatedItems = await api.getOrderItems();
+            setItems(updatedItems);
+          } catch (e) {
+            console.error(e);
+            alert("Failed to update status");
+            const updatedItems = await api.getOrderItems();
+            setItems(updatedItems);
+          }
+        }
       }
     }
   };
@@ -156,32 +178,129 @@ export default function ProductionBoard() {
             const Icon = COLUMN_ICONS[col];
             
             return (
-              <div key={col} className="flex-none w-80 flex flex-col bg-slate-100/50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 snap-start">
-                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Icon size={18} className="text-slate-500" />
-                    <h3 className="font-semibold text-slate-700 dark:text-slate-300">{col}</h3>
-                  </div>
-                  <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded-full shadow-sm">
-                    {colItems.length}
-                  </span>
-                </div>
-                
-                {/* Custom Droppable Area */}
-                <SortableContext id={col} items={colItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                  <div className="flex-1 p-3 overflow-y-auto space-y-3 min-h-[150px]">
-                    {colItems.map(item => (
-                      <SortableItem key={item.id} item={item} onUpdateQuantity={handleUpdateQuantity} />
-                    ))}
-                    {colItems.length === 0 && (
-                      <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl opacity-50">
-                        <span className="text-sm">Drop here</span>
-                      </div>
-                    )}
-                  </div>
-                </SortableContext>
+function DroppableColumn({ col, items, Icon, handleUpdateQuantity }: { col: ProductionStatus, items: any[], Icon: any, handleUpdateQuantity: any }) {
+  const { setNodeRef } = useDroppable({
+    id: col,
+  });
+
+  return (
+    <div className="flex-none w-80 flex flex-col bg-slate-100/50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 snap-start">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Icon size={18} className="text-slate-500" />
+          <h3 className="font-semibold text-slate-700 dark:text-slate-300">{col}</h3>
+        </div>
+        <span className="text-xs font-bold bg-white dark:bg-slate-800 px-2 py-1 rounded-full shadow-sm">
+          {items.length}
+        </span>
+      </div>
+      
+      <div ref={setNodeRef} className="flex-1 flex flex-col p-3 min-h-[150px]">
+        <SortableContext id={col} items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          <div className="flex-1 overflow-y-auto space-y-3">
+            {items.map(item => (
+              <SortableItem key={item.id} item={item} onUpdateQuantity={handleUpdateQuantity} />
+            ))}
+            {items.length === 0 && (
+              <div className="h-24 mt-2 flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl opacity-50">
+                <span className="text-sm">Drop here</span>
               </div>
-            );
+            )}
+          </div>
+        </SortableContext>
+      </div>
+    </div>
+  );
+}
+
+export default function ProductionBoard() {
+  const [items, setItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getOrderItems().then(setItems);
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over) {
+      // Find the destination column. It can be the column ID itself or an item inside the column
+      let newStatus: ProductionStatus | null = null;
+      
+      if (COLUMNS.includes(over.id as ProductionStatus)) {
+        // Dropped directly on the column
+        newStatus = over.id as ProductionStatus;
+      } else {
+        // Dropped on another item, find its column
+        const overItem = items.find(i => i.id === over.id);
+        if (overItem) {
+          newStatus = overItem.production_status as ProductionStatus;
+        }
+      }
+
+      if (newStatus && COLUMNS.includes(newStatus)) {
+        const itemId = active.id as string;
+        const activeItem = items.find(i => i.id === itemId);
+        
+        if (activeItem && activeItem.production_status !== newStatus) {
+          // Optimistic update
+          setItems((prev) => 
+            prev.map(i => i.id === itemId ? { ...i, production_status: newStatus! } : i)
+          );
+
+          // API update
+          try {
+            await api.updateItemStatus(itemId, newStatus);
+            // refresh to get accurate quantities if it auto-completed
+            const updatedItems = await api.getOrderItems();
+            setItems(updatedItems);
+          } catch (e) {
+            console.error(e);
+            alert("Failed to update status");
+            const updatedItems = await api.getOrderItems();
+            setItems(updatedItems);
+          }
+        }
+      }
+    }
+  };
+
+  const handleUpdateQuantity = async (itemId: string, quantity: number) => {
+    // Optimistic update
+    setItems((prev) => 
+      prev.map(i => i.id === itemId ? { ...i, quantity_completed: quantity } : i)
+    );
+    try {
+      await api.updateItemCompletedQuantity(itemId, quantity);
+      const updatedItems = await api.getOrderItems();
+      setItems(updatedItems);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update quantity");
+      const updatedItems = await api.getOrderItems();
+      setItems(updatedItems);
+    }
+  };
+
+  return (
+    <div className="h-[calc(100vh-8rem)] flex flex-col">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Production Board</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">Drag and drop SKU batches across stages.</p>
+      </div>
+
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="flex-1 flex gap-6 overflow-x-auto pb-4 snap-x">
+          {COLUMNS.map(col => {
+            const colItems = items.filter(i => i.production_status === col);
+            const Icon = COLUMN_ICONS[col];
+            
+            return <DroppableColumn key={col} col={col} items={colItems} Icon={Icon} handleUpdateQuantity={handleUpdateQuantity} />;
           })}
         </div>
       </DndContext>
