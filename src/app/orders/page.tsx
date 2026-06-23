@@ -60,42 +60,55 @@ export default function OrdersPage() {
                   <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{order.order_number}</td>
                   <td className="px-6 py-4">{order.customer.customer_name}</td>
                   <td className="px-6 py-4 text-slate-500">{new Date(order.order_date).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-slate-500">
-                    {order.deadline_date ? new Date(order.deadline_date).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="px-6 py-4 text-slate-500">
-                    {order.payment_date ? new Date(order.payment_date).toLocaleDateString() : '-'}
-                  </td>
                   <td className="px-6 py-4">
-                    <select
-                      value={order.status}
+                    <input 
+                      type="date" 
+                      value={order.deadline_date ? new Date(order.deadline_date).toISOString().split('T')[0] : ''}
                       onChange={async (e) => {
-                        const newStatus = e.target.value;
+                        const newDate = e.target.value;
                         const originalOrders = [...orders];
-                        
-                        // Optimistic update
-                        setOrders(orders.map(o => o.id === order.id ? { ...o, status: newStatus } : o));
-                        
+                        setOrders(orders.map(o => o.id === order.id ? { ...o, deadline_date: newDate || null } : o));
                         try {
-                          await api.updateOrderStatus(order.id, newStatus);
+                          await api.updateOrderDates(order.id, newDate || null, order.payment_date || null);
                         } catch (err) {
-                          console.error("Failed to update status", err);
+                          console.error("Failed to update deadline", err);
                           setOrders(originalOrders);
-                          alert("Failed to update status");
+                          alert("Failed to update deadline");
                         }
                       }}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500
+                      className="bg-transparent border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <input 
+                      type="date" 
+                      value={order.payment_date ? new Date(order.payment_date).toISOString().split('T')[0] : ''}
+                      onChange={async (e) => {
+                        const newDate = e.target.value;
+                        const originalOrders = [...orders];
+                        setOrders(orders.map(o => o.id === order.id ? { ...o, payment_date: newDate || null } : o));
+                        try {
+                          await api.updateOrderDates(order.id, order.deadline_date || null, newDate || null);
+                        } catch (err) {
+                          console.error("Failed to update payment date", err);
+                          setOrders(originalOrders);
+                          alert("Failed to update payment date");
+                        }
+                      }}
+                      className="bg-transparent border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border inline-block
                         ${order.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800' : ''}
                         ${order.status === 'In Production' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' : ''}
                         ${order.status === 'Ready to Ship' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800' : ''}
                         ${order.status === 'Shipped' ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700' : ''}
                       `}
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="In Production">In Production</option>
-                      <option value="Ready to Ship">Ready to Ship</option>
-                      <option value="Shipped">Shipped</option>
-                    </select>
+                      {order.status}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <Link href={`/orders/${order.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">

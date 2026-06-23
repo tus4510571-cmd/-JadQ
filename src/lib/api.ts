@@ -122,6 +122,15 @@ export const api = {
     }
   },
 
+  updateOrderDates: async (orderId: string, deadline_date: string | null, payment_date: string | null): Promise<void> => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ deadline_date, payment_date })
+      .eq('id', orderId);
+    
+    if (error) throw error;
+  },
+
   syncOrderStatusFromItems: async (orderId: string): Promise<void> => {
     // Fetch all items for this order
     const { data: items, error: fetchError } = await supabase
@@ -214,6 +223,8 @@ export const api = {
         order_number: order.order_number,
         customer_id: order.customer_id,
         order_date: order.order_date,
+        deadline_date: order.deadline_date,
+        payment_date: order.payment_date,
         status: order.status
       }])
       .select()
