@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Order } from "@/lib/types";
 import Link from "next/link";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Pencil, Save, X } from "lucide-react";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editDates, setEditDates] = useState({ deadline: '', payment: '' });
 
   useEffect(() => {
     api.getOrders().then(setOrders);
@@ -61,42 +63,32 @@ export default function OrdersPage() {
                   <td className="px-6 py-4">{order.customer.customer_name}</td>
                   <td className="px-6 py-4 text-slate-500">{new Date(order.order_date).toLocaleDateString()}</td>
                   <td className="px-6 py-4">
-                    <input 
-                      type="date" 
-                      value={order.deadline_date ? new Date(order.deadline_date).toISOString().split('T')[0] : ''}
-                      onChange={async (e) => {
-                        const newDate = e.target.value;
-                        const originalOrders = [...orders];
-                        setOrders(orders.map(o => o.id === order.id ? { ...o, deadline_date: newDate || null } : o));
-                        try {
-                          await api.updateOrderDates(order.id, newDate || null, order.payment_date || null);
-                        } catch (err) {
-                          console.error("Failed to update deadline", err);
-                          setOrders(originalOrders);
-                          alert("Failed to update deadline");
-                        }
-                      }}
-                      className="bg-transparent border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary-500"
-                    />
+                    {editingOrderId === order.id ? (
+                      <input 
+                        type="date" 
+                        value={editDates.deadline}
+                        onChange={(e) => setEditDates({ ...editDates, deadline: e.target.value })}
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary-500"
+                      />
+                    ) : (
+                      <span className="text-slate-500">
+                        {order.deadline_date ? new Date(order.deadline_date).toLocaleDateString() : '-'}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
-                    <input 
-                      type="date" 
-                      value={order.payment_date ? new Date(order.payment_date).toISOString().split('T')[0] : ''}
-                      onChange={async (e) => {
-                        const newDate = e.target.value;
-                        const originalOrders = [...orders];
-                        setOrders(orders.map(o => o.id === order.id ? { ...o, payment_date: newDate || null } : o));
-                        try {
-                          await api.updateOrderDates(order.id, order.deadline_date || null, newDate || null);
-                        } catch (err) {
-                          console.error("Failed to update payment date", err);
-                          setOrders(originalOrders);
-                          alert("Failed to update payment date");
-                        }
-                      }}
-                      className="bg-transparent border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary-500"
-                    />
+                    {editingOrderId === order.id ? (
+                      <input 
+                        type="date" 
+                        value={editDates.payment}
+                        onChange={(e) => setEditDates({ ...editDates, payment: e.target.value })}
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary-500"
+                      />
+                    ) : (
+                      <span className="text-slate-500">
+                        {order.payment_date ? new Date(order.payment_date).toLocaleDateString() : '-'}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -110,7 +102,54 @@ export default function OrdersPage() {
                       {order.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
+                    {editingOrderId === order.id ? (
+                      <>
+                        <button 
+                          onClick={async () => {
+                            const dl = editDates.deadline || null;
+                            const pd = editDates.payment || null;
+                            const originalOrders = [...orders];
+                            
+                            setOrders(orders.map(o => o.id === order.id ? { ...o, deadline_date: dl, payment_date: pd } : o));
+                            setEditingOrderId(null);
+                            
+                            try {
+                              await api.updateOrderDates(order.id, dl, pd);
+                            } catch (err) {
+                              console.error("Failed to update dates", err);
+                              setOrders(originalOrders);
+                              alert("Failed to save changes");
+                            }
+                          }}
+                          className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                          title="Save"
+                        >
+                          <Save size={16} />
+                        </button>
+                        <button 
+                          onClick={() => setEditingOrderId(null)}
+                          className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                          title="Cancel"
+                        >
+                          <X size={16} />
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={() => {
+                          setEditingOrderId(order.id);
+                          setEditDates({
+                            deadline: order.deadline_date ? new Date(order.deadline_date).toISOString().split('T')[0] : '',
+                            payment: order.payment_date ? new Date(order.payment_date).toISOString().split('T')[0] : ''
+                          });
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="Edit Dates"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
                     <Link href={`/orders/${order.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">
                       View Details
                     </Link>
