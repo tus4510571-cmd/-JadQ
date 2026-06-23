@@ -56,12 +56,29 @@ export default function SummaryPage() {
                         {size}
                       </div>
                       <div>
-                        <div className="text-sm font-medium">
-                          <span className="text-emerald-600 dark:text-emerald-400">{counts.completed}</span>
-                          <span className="text-slate-400 mx-1">/</span>
-                          <span className="text-slate-900 dark:text-white">{counts.ordered}</span>
-                        </div>
-                        <div className="text-xs text-slate-500">Completed</div>
+                    {(() => {
+                      let statusText = "Pending";
+                      let statusColor = "text-slate-500";
+                      
+                      if (counts.ordered > 0 && counts.completed >= counts.ordered) {
+                        statusText = "Complete";
+                        statusColor = "text-emerald-500 font-semibold";
+                      } else if (counts.completed > 0) {
+                        statusText = "In Production";
+                        statusColor = "text-amber-500 font-semibold";
+                      }
+
+                      return (
+                        <>
+                          <div className="text-sm font-medium">
+                            <span className="text-emerald-600 dark:text-emerald-400">{counts.completed}</span>
+                            <span className="text-slate-400 mx-1">/</span>
+                            <span className="text-slate-900 dark:text-white">{counts.ordered}</span>
+                          </div>
+                          <div className={`text-xs ${statusColor}`}>{statusText}</div>
+                        </>
+                      );
+                    })()}
                       </div>
                     </div>
                     <button 
