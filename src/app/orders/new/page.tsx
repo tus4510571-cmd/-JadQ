@@ -28,6 +28,9 @@ export default function NewOrderPage() {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
 
+  const [deadlineDate, setDeadlineDate] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
+
   useEffect(() => {
     api.getCustomers().then(setCustomers);
   }, []);
@@ -101,7 +104,14 @@ export default function NewOrderPage() {
       }
 
       await api.addOrder(
-        { order_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`, customer_id: finalCustomerId, order_date: new Date().toISOString(), status: 'Pending' },
+        { 
+          order_number: `ORD-${Math.floor(1000 + Math.random() * 9000)}`, 
+          customer_id: finalCustomerId, 
+          order_date: new Date().toISOString(), 
+          deadline_date: deadlineDate || null,
+          payment_date: paymentDate || null,
+          status: 'Pending' 
+        },
         orderItems
       );
       
@@ -175,9 +185,33 @@ export default function NewOrderPage() {
         )}
       </div>
 
+      <div className="glass-card rounded-2xl p-6">
+        <h2 className="text-xl font-bold mb-4">2. Order Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+          <div>
+            <label className="block text-sm font-medium mb-1">Deadline Date</label>
+            <input 
+              type="date"
+              value={deadlineDate}
+              onChange={(e) => setDeadlineDate(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Payment Date</label>
+            <input 
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="glass-card rounded-2xl p-6 overflow-x-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold">2. Matrix Order Input</h2>
+          <h2 className="text-xl font-bold">3. Matrix Order Input</h2>
           <div className="text-sm bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 px-4 py-2 rounded-lg font-medium">
             Total Items: {totalItems}
           </div>

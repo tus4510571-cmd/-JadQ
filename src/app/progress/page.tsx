@@ -49,9 +49,58 @@ export default function ProgressPage() {
               </div>
 
               {/* Overall Progress Bar */}
-              <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-6">
+              <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-4">
                 <div className="bg-primary-500 h-full transition-all" style={{ width: `${overallProgress}%` }} />
               </div>
+
+              {/* Deadline Indicator */}
+              {order.deadline_date && (
+                <div className="mb-6">
+                  {(() => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const deadline = new Date(order.deadline_date);
+                    const diffTime = deadline.getTime() - today.getTime();
+                    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    let bgColor = "bg-primary-500";
+                    let textColor = "text-primary-600 dark:text-primary-400";
+                    
+                    if (daysRemaining <= 10) {
+                      bgColor = "bg-red-500";
+                      textColor = "text-red-600 dark:text-red-400";
+                    } else if (daysRemaining <= 14) {
+                      bgColor = "bg-amber-400";
+                      textColor = "text-amber-600 dark:text-amber-500";
+                    } else if (daysRemaining < 0) {
+                      bgColor = "bg-red-700";
+                      textColor = "text-red-700 dark:text-red-500";
+                    }
+
+                    // For the bar width, maybe just visually show it shrinking from 30 days to 0? 
+                    // Or just a full bar if > 14, 50% if 14, 25% if 10? 
+                    // Since the user asked for a "tab" similar to overall progress, let's use a 30-day scale max for the bar width, 
+                    // or just a solid tab. Let's make it a solid bar with percentage based on 30 days.
+                    const widthPercent = Math.max(0, Math.min(100, (daysRemaining / 30) * 100));
+
+                    return (
+                      <div>
+                        <div className="flex justify-between items-end mb-1">
+                          <div className={`text-xs font-medium ${textColor}`}>
+                            Deadline: {deadline.toLocaleDateString()}
+                          </div>
+                          <div className={`text-xs font-bold ${textColor}`}>
+                            {daysRemaining < 0 ? `Overdue by ${Math.abs(daysRemaining)} days` : `${daysRemaining} days left`}
+                          </div>
+                        </div>
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                          <div className={`${bgColor} h-full transition-all`} style={{ width: `${widthPercent}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div className="space-y-4">
                 {/* Group items by design */}

@@ -16,6 +16,8 @@ export interface Order {
   order_number: string;
   customer_id: string;
   order_date: string; // ISO string
+  deadline_date?: string | null;
+  payment_date?: string | null;
   status: OrderStatus;
 }
 

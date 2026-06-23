@@ -63,7 +63,12 @@ export default function OrderDetailsPage() {
             <h2 className="text-2xl font-bold">{order.order_number}</h2>
             <p className="text-slate-500">{order.customer.customer_name}</p>
             <p className="text-sm text-slate-400 mt-1">Ordered on: {new Date(order.order_date).toLocaleDateString()}</p>
-            
+            {order.deadline_date && (
+              <p className="text-sm text-amber-500 mt-1">Deadline: {new Date(order.deadline_date).toLocaleDateString()}</p>
+            )}
+            {order.payment_date && (
+              <p className="text-sm text-emerald-500 mt-1">Payment Date: {new Date(order.payment_date).toLocaleDateString()}</p>
+            )}
             <div className="mt-4 flex items-center gap-2">
               <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Status:</span>
               <span className={`px-2.5 py-1 rounded-full text-xs font-medium border

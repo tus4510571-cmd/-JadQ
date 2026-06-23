@@ -48,6 +48,8 @@ export default function OrdersPage() {
                 <th className="px-6 py-4 font-medium">Order Number</th>
                 <th className="px-6 py-4 font-medium">Customer</th>
                 <th className="px-6 py-4 font-medium">Date</th>
+                <th className="px-6 py-4 font-medium">Deadline</th>
+                <th className="px-6 py-4 font-medium">Payment Date</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
@@ -58,6 +60,12 @@ export default function OrdersPage() {
                   <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{order.order_number}</td>
                   <td className="px-6 py-4">{order.customer.customer_name}</td>
                   <td className="px-6 py-4 text-slate-500">{new Date(order.order_date).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-slate-500">
+                    {order.deadline_date ? new Date(order.deadline_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="px-6 py-4 text-slate-500">
+                    {order.payment_date ? new Date(order.payment_date).toLocaleDateString() : '-'}
+                  </td>
                   <td className="px-6 py-4">
                     <select
                       value={order.status}
