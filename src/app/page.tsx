@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const [stats, setStats] = useState({
     totalOrders: 0,
     pending: 0,
@@ -28,18 +32,30 @@ export default function Dashboard() {
       const orders = await api.getOrders();
       const items = await api.getOrderItems();
 
-      setStats({
-        totalOrders: orders.length,
-        pending: orders.filter(o => o.status === 'Pending').length,
-        inProduction: orders.filter(o => o.status === 'In Production').length,
-        readyToShip: orders.filter(o => o.status === 'Ready to Ship').length,
-        shipped: orders.filter(o => o.status === 'Shipped').length,
-      });
-
+      setAllOrders(orders);
       setRecentItems(items.slice(-5).reverse());
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    const filteredOrders = allOrders.filter(o => {
+      if (!startDate && !endDate) return true;
+      const orderDate = new Date(o.order_date).getTime();
+      const start = startDate ? new Date(startDate).getTime() : 0;
+      // If end date is set, include the whole day by adding 24 hours (or setting to end of day)
+      const end = endDate ? new Date(endDate).getTime() + 86400000 : Infinity;
+      return orderDate >= start && orderDate <= end;
+    });
+
+    setStats({
+      totalOrders: filteredOrders.length,
+      pending: filteredOrders.filter(o => o.status === 'Pending').length,
+      inProduction: filteredOrders.filter(o => o.status === 'In Production').length,
+      readyToShip: filteredOrders.filter(o => o.status === 'Ready to Ship').length,
+      shipped: filteredOrders.filter(o => o.status === 'Shipped').length,
+    });
+  }, [allOrders, startDate, endDate]);
 
   const kpis = [
     { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, color: "bg-blue-500", lightColor: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400" },
@@ -55,6 +71,34 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Dashboard</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Overview of your garment production today.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-500 font-medium mb-1">From Date</label>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-500 font-medium mb-1">To Date</label>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          {(startDate || endDate) && (
+            <button 
+              onClick={() => { setStartDate(""); setEndDate(""); }}
+              className="mt-5 text-xs text-primary-600 hover:text-primary-700 font-medium underline"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
