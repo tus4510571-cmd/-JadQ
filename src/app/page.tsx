@@ -9,12 +9,14 @@ import {
   Package, 
   Truck, 
   CheckCircle2,
-  Activity
+  Activity,
+  Clock
 } from "lucide-react";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
     totalOrders: 0,
+    pending: 0,
     inProduction: 0,
     readyToShip: 0,
     shipped: 0,
@@ -28,6 +30,7 @@ export default function Dashboard() {
 
       setStats({
         totalOrders: orders.length,
+        pending: orders.filter(o => o.status === 'Pending').length,
         inProduction: orders.filter(o => o.status === 'In Production').length,
         readyToShip: orders.filter(o => o.status === 'Ready to Ship').length,
         shipped: orders.filter(o => o.status === 'Shipped').length,
@@ -40,6 +43,7 @@ export default function Dashboard() {
 
   const kpis = [
     { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, color: "bg-blue-500", lightColor: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400" },
+    { label: "Pending", value: stats.pending, icon: Clock, color: "bg-slate-500", lightColor: "bg-slate-50 text-slate-600 dark:bg-slate-900/20 dark:text-slate-400" },
     { label: "In Production", value: stats.inProduction, icon: Activity, color: "bg-amber-500", lightColor: "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400" },
     { label: "Ready to Ship", value: stats.readyToShip, icon: Package, color: "bg-primary-500", lightColor: "bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400" },
     { label: "Shipped", value: stats.shipped, icon: Truck, color: "bg-emerald-500", lightColor: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400" },
@@ -54,7 +58,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
         {kpis.map((kpi, idx) => (
           <div key={idx} className="glass-card rounded-2xl p-6 flex items-start gap-4 transition-transform hover:-translate-y-1 duration-300">
             <div className={`p-3 rounded-xl ${kpi.lightColor}`}>
