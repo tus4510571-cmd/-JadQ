@@ -320,7 +320,7 @@ export default function ProductionBoard() {
               <div key={design} className="p-4 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
                 <h3 className="font-bold text-lg mb-3 text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">{design}</h3>
                 <div className="space-y-2">
-                  {items.map(item => (
+                  {(items as any[]).map(item => (
                     <div key={item.id} className="flex justify-between items-center text-sm">
                       <span className="font-medium text-slate-700 dark:text-slate-300">Size {item.size}</span>
                       <div className="flex items-center gap-3">
