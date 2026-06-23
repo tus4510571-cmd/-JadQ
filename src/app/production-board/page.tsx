@@ -250,8 +250,8 @@ export default function ProductionBoard() {
     : items;
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col">
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="h-[calc(100vh-8rem)] flex flex-col overflow-y-auto pr-2">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Production Board</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Drag and drop SKU batches across stages.</p>
@@ -305,6 +305,38 @@ export default function ProductionBoard() {
           })}
         </div>
       </DndContext>
+
+      {viewMode === 'customer' && selectedCustomerId && displayedItems.length > 0 && (
+        <div className="mt-8 p-6 glass-card rounded-2xl flex-shrink-0">
+          <h2 className="text-xl font-bold mb-4">Summary for {uniqueCustomersMap.get(selectedCustomerId)}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Object.entries(
+              displayedItems.reduce((acc, item) => {
+                if (!acc[item.design_number]) acc[item.design_number] = [];
+                acc[item.design_number].push(item);
+                return acc;
+              }, {} as Record<string, any[]>)
+            ).map(([design, items]) => (
+              <div key={design} className="p-4 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                <h3 className="font-bold text-lg mb-3 text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-2">{design}</h3>
+                <div className="space-y-2">
+                  {items.map(item => (
+                    <div key={item.id} className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Size {item.size}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-slate-500">{item.quantity_completed}/{item.quantity_ordered}</span>
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                          {item.production_status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
