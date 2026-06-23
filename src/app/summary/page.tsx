@@ -6,7 +6,7 @@ import { OrderItem } from "@/lib/types";
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function SummaryPage() {
-  const [items, setItems] = useState<OrderItem[]>([]);
+  const [items, setItems] = useState<any[]>([]);
 
   useEffect(() => {
     api.getOrderItems().then(setItems);
