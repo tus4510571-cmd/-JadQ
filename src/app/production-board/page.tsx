@@ -23,7 +23,7 @@ const COLUMN_ICONS: Record<ProductionStatus, any> = {
   'Shipped': CheckCircle,
 };
 
-function SortableItem({ item, onUpdateQuantity }: { item: any, onUpdateQuantity: (id: string, q: number) => void }) {
+function SortableItem({ item, onUpdateQuantity, viewMode }: { item: any, onUpdateQuantity: (id: string, q: number) => void, viewMode: 'sku' | 'customer' }) {
   const {
     attributes,
     listeners,
@@ -54,6 +54,32 @@ function SortableItem({ item, onUpdateQuantity }: { item: any, onUpdateQuantity:
       }
     }
   };
+
+  if (viewMode === 'customer') {
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} {...listeners} 
+        className="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative overflow-hidden group">
+        <div 
+          className="absolute left-0 bottom-0 h-1 bg-primary-500 transition-all" 
+          style={{ width: `${progress}%` }} 
+        />
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex-1 truncate">
+            <span className="font-bold text-sm text-slate-900 dark:text-white mr-2">{item.design_number}</span>
+            <span className="text-xs font-semibold text-slate-500">Size {item.size}</span>
+          </div>
+          <button 
+            onClick={handleEditClick}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={`px-2 py-0.5 rounded text-xs font-medium transition-colors hover:bg-slate-100 dark:hover:bg-slate-700 ${progress === 100 ? "text-emerald-500" : "text-primary-600"}`}
+            title="Click to edit quantity"
+          >
+            {item.quantity_completed}/{item.quantity_ordered}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} 
@@ -91,7 +117,7 @@ function SortableItem({ item, onUpdateQuantity }: { item: any, onUpdateQuantity:
 }
 
 
-function DroppableColumn({ col, items, Icon, handleUpdateQuantity }: { col: ProductionStatus, items: any[], Icon: any, handleUpdateQuantity: any }) {
+function DroppableColumn({ col, items, Icon, handleUpdateQuantity, viewMode }: { col: ProductionStatus, items: any[], Icon: any, handleUpdateQuantity: any, viewMode: 'sku' | 'customer' }) {
   const { setNodeRef } = useDroppable({
     id: col,
   });
@@ -112,7 +138,7 @@ function DroppableColumn({ col, items, Icon, handleUpdateQuantity }: { col: Prod
         <SortableContext id={col} items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           <div className="flex-1 overflow-y-auto space-y-3">
             {items.map(item => (
-              <SortableItem key={item.id} item={item} onUpdateQuantity={handleUpdateQuantity} />
+              <SortableItem key={item.id} item={item} onUpdateQuantity={handleUpdateQuantity} viewMode={viewMode} />
             ))}
             {items.length === 0 && (
               <div className="h-24 mt-2 flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl opacity-50">
@@ -128,9 +154,18 @@ function DroppableColumn({ col, items, Icon, handleUpdateQuantity }: { col: Prod
 
 export default function ProductionBoard() {
   const [items, setItems] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'sku' | 'customer'>('sku');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
 
   useEffect(() => {
-    api.getOrderItems().then(setItems);
+    api.getOrderItems().then(data => {
+      setItems(data);
+      if (data.length > 0) {
+        // Set initial customer
+        const customers = Array.from(new Set(data.map(i => i.order.customer.id)));
+        if (customers.length > 0) setSelectedCustomerId(customers[0]);
+      }
+    });
   }, []);
 
   const sensors = useSensors(
@@ -200,20 +235,73 @@ export default function ProductionBoard() {
     }
   };
 
+  // Get unique customers for the dropdown
+  const uniqueCustomersMap = new Map();
+  items.forEach(i => {
+    if (!uniqueCustomersMap.has(i.order.customer.id)) {
+      uniqueCustomersMap.set(i.order.customer.id, i.order.customer.customer_name);
+    }
+  });
+  const uniqueCustomers = Array.from(uniqueCustomersMap.entries()).map(([id, name]) => ({ id, name }));
+
+  // Filter items based on view mode
+  const displayedItems = viewMode === 'customer' && selectedCustomerId 
+    ? items.filter(i => i.order.customer.id === selectedCustomerId)
+    : items;
+
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Production Board</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">Drag and drop SKU batches across stages.</p>
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Production Board</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Drag and drop SKU batches across stages.</p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {viewMode === 'customer' && (
+            <select
+              value={selectedCustomerId}
+              onChange={(e) => setSelectedCustomerId(e.target.value)}
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {uniqueCustomers.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
+
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('sku')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'sku' 
+                  ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-600 dark:text-primary-400' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              By SKU
+            </button>
+            <button
+              onClick={() => setViewMode('customer')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                viewMode === 'customer' 
+                  ? 'bg-white dark:bg-slate-700 shadow-sm text-primary-600 dark:text-primary-400' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              By Customer
+            </button>
+          </div>
+        </div>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="flex-1 flex gap-6 overflow-x-auto pb-4 snap-x">
           {COLUMNS.map(col => {
-            const colItems = items.filter(i => i.production_status === col);
+            const colItems = displayedItems.filter(i => i.production_status === col);
             const Icon = COLUMN_ICONS[col];
             
-            return <DroppableColumn key={col} col={col} items={colItems} Icon={Icon} handleUpdateQuantity={handleUpdateQuantity} />;
+            return <DroppableColumn key={col} col={col} items={colItems} Icon={Icon} handleUpdateQuantity={handleUpdateQuantity} viewMode={viewMode} />;
           })}
         </div>
       </DndContext>
