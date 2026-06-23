@@ -25,7 +25,7 @@ export default function Dashboard() {
     readyToShip: 0,
     shipped: 0,
   });
-  const [recentItems, setRecentItems] = useState<(OrderItem & { order: Order })[]>([]);
+  const [ordersWithProgress, setOrdersWithProgress] = useState<(Order & { customer: any, items: OrderItem[] })[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -33,7 +33,16 @@ export default function Dashboard() {
       const items = await api.getOrderItems();
 
       setAllOrders(orders);
-      setRecentItems(items.slice(-5).reverse());
+      
+      const combined = orders.map(o => ({
+        ...o,
+        items: items.filter(i => i.order_id === o.id)
+      })).filter(o => o.status !== 'Shipped'); // Only show active orders for progress
+
+      // Sort by customer name
+      combined.sort((a, b) => a.customer.customer_name.localeCompare(b.customer.customer_name));
+      
+      setOrdersWithProgress(combined);
     }
     loadData();
   }, []);
@@ -117,47 +126,111 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activities */}
+        {/* Buyer Orders Progress */}
         <div className="lg:col-span-2 glass-card rounded-2xl p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">Recent Activities</h2>
+            <h2 className="text-xl font-bold">Buyer Orders</h2>
           </div>
-          <div className="space-y-4">
-            {recentItems.length === 0 ? (
-              <p className="text-slate-500 text-sm">No recent activities.</p>
+          <div className="space-y-6">
+            {ordersWithProgress.length === 0 ? (
+              <p className="text-slate-500 text-sm">No active orders.</p>
             ) : (
-              recentItems.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                  <div className="bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 p-2 rounded-lg">
-                    <CheckCircle2 size={20} />
+              ordersWithProgress.map(order => {
+                const totalOrdered = order.items.reduce((sum, item) => sum + item.quantity_ordered, 0);
+                const totalCompleted = order.items.reduce((sum, item) => sum + item.quantity_completed, 0);
+                const overallProgress = totalOrdered > 0 ? Math.round((totalCompleted / totalOrdered) * 100) : 0;
+
+                let deadlineBgColor = "bg-primary-500";
+                let deadlineTextColor = "text-primary-600 dark:text-primary-400";
+                let widthPercent = 0;
+                let daysRemainingText = "";
+
+                if (order.deadline_date) {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const deadline = new Date(order.deadline_date);
+                  const diffTime = deadline.getTime() - today.getTime();
+                  const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  
+                  if (daysRemaining <= 10) {
+                    deadlineBgColor = "bg-red-500";
+                    deadlineTextColor = "text-red-600 dark:text-red-400";
+                  } else if (daysRemaining <= 14) {
+                    deadlineBgColor = "bg-amber-400";
+                    deadlineTextColor = "text-amber-600 dark:text-amber-500";
+                  } else if (daysRemaining < 0) {
+                    deadlineBgColor = "bg-red-700";
+                    deadlineTextColor = "text-red-700 dark:text-red-500";
+                  }
+
+                  widthPercent = Math.max(0, Math.min(100, (daysRemaining / 30) * 100));
+                  daysRemainingText = daysRemaining < 0 ? `Overdue by ${Math.abs(daysRemaining)} days` : `${daysRemaining} days left`;
+                }
+
+                return (
+                  <div key={order.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white uppercase">{order.customer.customer_name}</h3>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{order.order_number}</p>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-primary-600 dark:text-primary-400 leading-none">{overallProgress}%</div>
+                            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mt-1">Overall Progress</p>
+                          </div>
+                          <Link 
+                            href={`/orders/${order.id}`}
+                            className="ml-2 px-3 py-1.5 text-xs font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+                          >
+                            Detail
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Overall Progress Bar */}
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden mb-4">
+                      <div className="bg-primary-500 h-full transition-all" style={{ width: `${overallProgress}%` }} />
+                    </div>
+
+                    {/* Deadline Indicator */}
+                    {order.deadline_date && (
+                      <div>
+                        <div className="flex justify-between items-end mb-1">
+                          <div className={`text-xs font-medium ${deadlineTextColor}`}>
+                            Deadline: {new Date(order.deadline_date).toLocaleDateString()}
+                          </div>
+                          <div className={`text-xs font-bold ${deadlineTextColor}`}>
+                            {daysRemainingText}
+                          </div>
+                        </div>
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                          <div className={`${deadlineBgColor} h-full transition-all`} style={{ width: `${widthPercent}%` }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-slate-900 dark:text-white">
-                      {item.design_number} - Size {item.size}
-                    </p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Order {item.order.order_number} &bull; {item.quantity_completed}/{item.quantity_ordered} completed
-                    </p>
-                  </div>
-                  <div className="text-sm font-semibold px-3 py-1 bg-white dark:bg-slate-900 rounded-full border border-slate-200 dark:border-slate-700">
-                    {item.production_status}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* Quick Actions or secondary widget */}
+        {/* Quick Actions & Recent */}
         <div className="glass-card rounded-2xl p-6">
            <h2 className="text-xl font-bold mb-6">Quick Actions</h2>
            <div className="space-y-3">
-             <Link href="/orders/new" className="block w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 transition-colors border border-slate-200 dark:border-slate-700">
+             <Link href="/orders/new" className="block w-full text-center px-4 py-3 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-sm">
                + Create New Order
              </Link>
-             <button className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 transition-colors border border-slate-200 dark:border-slate-700">
+             <button className="w-full text-center px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700">
                Scan QR Code
              </button>
+             <Link href="/progress" className="block w-full text-center px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700">
+               Recent Activities
+             </Link>
            </div>
         </div>
       </div>
