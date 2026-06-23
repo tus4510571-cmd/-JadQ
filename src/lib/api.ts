@@ -60,6 +60,44 @@ export const api = {
       .eq('id', orderId);
     
     if (error) throw error;
+
+    // Sync down to items
+    let itemStatus: ProductionStatus | null = null;
+    if (status === 'Pending') itemStatus = 'Pending';
+    else if (status === 'In Production') itemStatus = 'Cutting'; 
+    else if (status === 'Ready to Ship') itemStatus = 'Ready To Ship';
+    else if (status === 'Shipped') itemStatus = 'Shipped';
+
+    if (itemStatus) {
+      if (itemStatus === 'Ready To Ship' || itemStatus === 'Shipped') {
+        const { data: items } = await supabase.from('order_items').select('id, quantity_ordered').eq('order_id', orderId);
+        if (items) {
+          for (const item of items) {
+             await supabase.from('order_items').update({
+               production_status: itemStatus,
+               quantity_completed: item.quantity_ordered
+             }).eq('id', item.id);
+          }
+        }
+      } else if (itemStatus === 'Pending') {
+        await supabase.from('order_items').update({
+          production_status: itemStatus,
+          quantity_completed: 0
+        }).eq('order_id', orderId);
+      } else {
+        // In Production: if items are Pending, Ready to Ship, or Shipped, move them to Cutting
+        const { data: items } = await supabase.from('order_items').select('id, production_status').eq('order_id', orderId);
+        if (items) {
+          for (const item of items) {
+            if (item.production_status === 'Pending' || item.production_status === 'Ready To Ship' || item.production_status === 'Shipped') {
+              await supabase.from('order_items').update({
+                production_status: 'Cutting'
+              }).eq('id', item.id);
+            }
+          }
+        }
+      }
+    }
   },
 
   syncOrderStatusFromItems: async (orderId: string): Promise<void> => {
