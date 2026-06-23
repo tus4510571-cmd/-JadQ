@@ -35,6 +35,17 @@ export const api = {
     return data as (Order & { customer: Customer })[];
   },
   
+  getOrderById: async (id: string): Promise<Order & { customer: Customer }> => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*, customer:customers(*)')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return data as Order & { customer: Customer };
+  },
+  
   getOrderItems: async (): Promise<(OrderItem & { order: Order & { customer: Customer }})[]> => {
     const { data, error } = await supabase
       .from('order_items')
@@ -51,6 +62,17 @@ export const api = {
     // Map because Supabase returns relations as objects/arrays based on cardinality
     // `order` is a single object here.
     return data as any; 
+  },
+
+  getOrderItemsByOrderId: async (orderId: string): Promise<OrderItem[]> => {
+    const { data, error } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data as OrderItem[];
   },
 
   updateOrderStatus: async (orderId: string, status: string): Promise<void> => {

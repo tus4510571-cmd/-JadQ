@@ -90,7 +90,9 @@ export default function OrdersPage() {
                     </select>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-primary-600 hover:text-primary-700 font-medium text-sm">View Details</button>
+                    <Link href={`/orders/${order.id}`} className="text-primary-600 hover:text-primary-700 font-medium text-sm">
+                      View Details
+                    </Link>
                   </td>
                 </tr>
               ))}
