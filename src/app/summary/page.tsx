@@ -13,14 +13,17 @@ export default function SummaryPage() {
   }, []);
 
   // Group by Design and Size
-  const summary: Record<string, Record<string, { ordered: number, completed: number }>> = {};
+  const summary: Record<string, Record<string, { ordered: number, completed: number, customers: Set<string> }>> = {};
   
   items.forEach(item => {
     if (!summary[item.design_number]) summary[item.design_number] = {};
-    if (!summary[item.design_number][item.size]) summary[item.design_number][item.size] = { ordered: 0, completed: 0 };
+    if (!summary[item.design_number][item.size]) summary[item.design_number][item.size] = { ordered: 0, completed: 0, customers: new Set() };
     
     summary[item.design_number][item.size].ordered += item.quantity_ordered;
     summary[item.design_number][item.size].completed += item.quantity_completed;
+    if (item.order && item.order.customer) {
+      summary[item.design_number][item.size].customers.add(item.order.customer.customer_name);
+    }
   });
 
   const [selectedQR, setSelectedQR] = useState<{ design: string, size: string } | null>(null);
@@ -74,6 +77,11 @@ export default function SummaryPage() {
                             <span className="text-emerald-600 dark:text-emerald-400">{counts.completed}</span>
                             <span className="text-slate-400 mx-1">/</span>
                             <span className="text-slate-900 dark:text-white">{counts.ordered}</span>
+                            {counts.customers.size > 0 && (
+                              <span className="text-xs text-slate-500 font-normal ml-2">
+                                (Customer: {Array.from(counts.customers).join(', ')})
+                              </span>
+                            )}
                           </div>
                           <div className={`text-xs ${statusColor}`}>{statusText}</div>
                         </>
