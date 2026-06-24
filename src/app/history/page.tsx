@@ -158,9 +158,12 @@ export default function HistoryPage() {
       const sizeVolume: Record<string, number> = {};
       let totalSpent = 0;
 
-      // 1. Identify the customer's orders and sort chronologically
+      // Find the name of the selected customer
+      const targetCustomerName = customers.find(c => c.id === selectedCustomerId)?.customer_name || "";
+
+      // 1. Identify the customer's orders and sort chronologically (by name to catch all accounts with same name)
       const customerOrders = orders
-        .filter(o => o.customer_id === selectedCustomerId)
+        .filter(o => o.customer?.customer_name === targetCustomerName)
         .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
         
       // 2. Map order_id to its sequence label (e.g. Order 1, Order 2)
@@ -175,7 +178,7 @@ export default function HistoryPage() {
       const comparativeSizeVolume: Record<string, Record<string, number>> = {};
 
       orderItems.forEach(item => {
-        if (item.order && item.order.customer_id === selectedCustomerId) {
+        if (item.order && item.order.customer?.customer_name === targetCustomerName) {
           const design = item.design_number || "Unknown";
           const size = item.size || "Unknown";
           const qty = item.quantity_ordered || 0;
@@ -427,7 +430,7 @@ export default function HistoryPage() {
               className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-900 dark:text-white outline-none cursor-pointer max-w-[200px] truncate"
             >
               <option value="all">All Customers (Top Ranking)</option>
-              {customers.map(c => (
+              {Array.from(new Map(customers.map(c => [c.customer_name, c])).values()).map(c => (
                 <option key={c.id} value={c.id}>{c.customer_name}</option>
               ))}
             </select>
