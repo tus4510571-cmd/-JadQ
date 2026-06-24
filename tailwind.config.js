@@ -10,11 +10,11 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          500: '#94a3b8', // sophisticated pastel slate/blue
-          600: '#64748b',
-          900: '#0f172a',
+          50: '#eff6ff',
+          100: '#dbeafe',
+          500: '#60a5fa', // Soft pastel blue
+          600: '#3b82f6',
+          900: '#1e3a8a',
         },
         dark: {
           bg: '#020617', // Deeper, more premium black
