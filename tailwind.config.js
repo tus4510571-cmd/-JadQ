@@ -10,18 +10,22 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          500: '#22c55e',
-          600: '#16a34a',
-          900: '#14532d',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          500: '#94a3b8', // sophisticated pastel slate/blue
+          600: '#64748b',
+          900: '#0f172a',
         },
         dark: {
-          bg: '#0f172a',
-          card: '#1e293b',
-          border: '#334155'
+          bg: '#020617', // Deeper, more premium black
+          card: '#0f172a',
+          border: '#1e293b'
         }
       },
+      boxShadow: {
+        'soft': '0 4px 40px -2px rgba(0, 0, 0, 0.05)',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.03)',
+      }
     },
   },
   plugins: [],
