@@ -250,8 +250,8 @@ export const api = {
   },
 
   // Roles
-  getUserRole: async (email: string): Promise<'admin' | 'production'> => {
-    const { data, error } = await supabase
+  getUserRole: async (email: string, client: any = supabase): Promise<'admin' | 'production'> => {
+    const { data, error } = await client
       .from('user_roles')
       .select('role')
       .eq('email', email)

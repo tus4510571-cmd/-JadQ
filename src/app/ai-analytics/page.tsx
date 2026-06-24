@@ -30,6 +30,17 @@ export default function AIAnalyticsPage() {
     fetchUser();
   }, []);
 
+  if (role === null) {
+     return (
+       <div className="flex items-center justify-center min-h-[60vh]">
+         <div className="animate-pulse flex flex-col items-center">
+           <div className="h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+           <p className="text-slate-500">Checking permissions...</p>
+         </div>
+       </div>
+     );
+  }
+
   if (role !== 'admin') {
      return (
        <div className="flex items-center justify-center min-h-[60vh]">
