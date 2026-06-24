@@ -4,9 +4,9 @@ import { useEffect, useState, useMemo } from "react";
 import { api } from "@/lib/api";
 import { Download, BarChart2, PieChart as PieChartIcon, TrendingUp, Users } from "lucide-react";
 import {
-  LineChart, Line, BarChart, Bar,
+  LineChart, Line, BarChart, Bar, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, LabelList
 } from "recharts";
 
 const COLORS = ['#94a3b8', '#818cf8', '#a7f3d0', '#fbcfe8', '#fde047', '#cbd5e1'];
@@ -176,6 +176,53 @@ export default function HistoryPage() {
     }
   }, [selectedCustomerId, orderItems, orders]);
 
+  // --- Sales Summary Dashboard Data ---
+  const salesSummaryData = useMemo(() => {
+    // 1. Combo Chart & Horizontal Bar Chart: Sales & Quantity by Design
+    const designStats: Record<string, { quantity: number; sales: number }> = {};
+    const PRICE_PER_ITEM = 500; // Simulated price
+
+    orderItems.forEach(item => {
+      const design = item.design_number || "Unknown";
+      if (!designStats[design]) {
+        designStats[design] = { quantity: 0, sales: 0 };
+      }
+      const qty = item.quantity_ordered || 0;
+      designStats[design].quantity += qty;
+      designStats[design].sales += qty * PRICE_PER_ITEM;
+    });
+
+    const comboChartData = Object.entries(designStats)
+      .map(([design, stats]) => ({
+        design,
+        quantity: stats.quantity,
+        sales: stats.sales,
+      }))
+      .sort((a, b) => b.sales - a.sales);
+
+    // 2. Donut Chart: New vs Repeat Customers
+    const orderCountByCustomer: Record<string, number> = {};
+    orders.forEach(o => {
+      const cid = o.customer_id;
+      orderCountByCustomer[cid] = (orderCountByCustomer[cid] || 0) + 1;
+    });
+
+    let newCustomers = 0;
+    let repeatCustomers = 0;
+    Object.values(orderCountByCustomer).forEach(count => {
+      if (count === 1) newCustomers++;
+      else if (count > 1) repeatCustomers++;
+    });
+
+    const donutChartData = [
+      { name: "New Customers", value: newCustomers, fill: "#94a3b8" }, // slate-400
+      { name: "Repeat Customers", value: repeatCustomers, fill: "#60a5fa" } // blue-400
+    ];
+
+    return { comboChartData, donutChartData };
+  }, [orderItems, orders]);
+
+
   if (role === null) {
      return (
        <div className="flex items-center justify-center min-h-[60vh]">
@@ -231,6 +278,94 @@ export default function HistoryPage() {
              <Users size={16}/> Repeat Customers
           </div>
           <div className="text-4xl font-bold">{kpis.repeatPercent}% <span className="text-base font-normal text-slate-400">loyalty</span></div>
+        </div>
+      </div>
+
+      {/* SALES SUMMARY DASHBOARD (NEW) */}
+      <div className="glass-card p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
+            <TrendingUp className="text-blue-500" /> Sales Summary Dashboard
+          </h2>
+        </div>
+
+        {salesSummaryData.comboChartData.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Combo Chart */}
+            <div className="h-[400px] w-full bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl">
+              <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-6 text-center">Sales & Quantity by Design Pattern</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={salesSummaryData.comboChartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="design" scale="band" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="left" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Bar yAxisId="left" dataKey="quantity" name="Quantity Sold" barSize={30} fill="#94a3b8" radius={[4, 4, 0, 0]}>
+                     <LabelList dataKey="quantity" position="top" fill="#64748b" fontSize={11} fontWeight="bold" />
+                  </Bar>
+                  <Line yAxisId="right" type="monotone" dataKey="sales" name="Total Sales (THB)" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} >
+                     <LabelList dataKey="sales" position="top" fill="#2563eb" fontSize={11} fontWeight="bold" />
+                  </Line>
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Horizontal Bar Chart */}
+            <div className="h-[400px] w-full bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl">
+              <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-6 text-center">Top Designs by Total Sales</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={salesSummaryData.comboChartData} layout="vertical" margin={{ top: 20, right: 50, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                  <XAxis type="number" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} hide />
+                  <YAxis type="category" dataKey="design" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} width={80} />
+                  <Tooltip 
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    formatter={(val) => [`${val} THB`, 'Total Sales']}
+                  />
+                  <Bar dataKey="sales" fill="#60a5fa" radius={[0, 6, 6, 0]} barSize={24} animationDuration={1000}>
+                    <LabelList dataKey="sales" position="right" fill="#475569" fontSize={12} fontWeight="bold" formatter={(val: number) => `${val.toLocaleString()}`} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : (
+          <div className="h-64 flex items-center justify-center text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-2xl mb-8">
+             No sales data available.
+          </div>
+        )}
+
+        {/* Donut Chart: New vs Repeat Customers */}
+        <div className="h-[300px] w-full md:w-1/2 mx-auto bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl">
+           <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2 text-center">Customer Composition</h3>
+           <ResponsiveContainer width="100%" height="100%">
+             <PieChart>
+               <Pie
+                 data={salesSummaryData.donutChartData}
+                 cx="50%"
+                 cy="50%"
+                 innerRadius={60}
+                 outerRadius={90}
+                 paddingAngle={2}
+                 dataKey="value"
+                 animationDuration={1500}
+               >
+                 {salesSummaryData.donutChartData.map((entry, index) => (
+                   <Cell key={`cell-${index}`} fill={entry.fill} />
+                 ))}
+                 <LabelList dataKey="value" position="outside" fill="#475569" fontSize={12} fontWeight="bold" formatter={(val: number, entry: any) => `${val} (${Math.round((val / (salesSummaryData.donutChartData[0].value + salesSummaryData.donutChartData[1].value || 1)) * 100)}%)`} />
+               </Pie>
+               <Tooltip 
+                 contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+               />
+               <Legend verticalAlign="bottom" height={36} iconType="circle" />
+             </PieChart>
+           </ResponsiveContainer>
         </div>
       </div>
 
