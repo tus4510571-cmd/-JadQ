@@ -32,12 +32,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
-    // Need to clear Supabase cookie/session
-    // Because we might use createBrowserClient or supabase-js
-    const { createClient } = await import('@supabase/supabase-js');
+    const { createBrowserClient } = await import('@supabase/ssr');
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
     await supabase.auth.signOut();
     window.location.href = "/login";
   };
