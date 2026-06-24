@@ -101,20 +101,36 @@ export default function HistoryPage() {
   // --- Marketing Analytics Data ---
   const marketingData = useMemo(() => {
     if (selectedCustomerId === "all") {
-      // Top Customers by Volume
       const customerVolume: Record<string, number> = {};
+      const orderCountByCustomer: Record<string, {name: string, count: number}> = {};
+
       orderItems.forEach(item => {
         if (item.order && item.order.customer) {
           const name = item.order.customer.customer_name;
           customerVolume[name] = (customerVolume[name] || 0) + item.quantity_ordered;
         }
       });
+      
+      orders.forEach(o => {
+         if (o.customer) {
+            const name = o.customer.customer_name;
+            if (!orderCountByCustomer[name]) {
+               orderCountByCustomer[name] = { name, count: 0 };
+            }
+            orderCountByCustomer[name].count += 1;
+         }
+      });
+
       const topCustomers = Object.entries(customerVolume)
         .map(([name, volume]) => ({ name, volume }))
         .sort((a, b) => b.volume - a.volume)
         .slice(0, 10); // Top 10
 
-      return { type: "all", data: topCustomers };
+      const loyaltyCustomers = Object.values(orderCountByCustomer)
+        .filter(c => c.count > 1)
+        .sort((a, b) => b.count - a.count);
+
+      return { type: "all", data: topCustomers, loyaltyData: loyaltyCustomers };
     } else {
       // Specific Customer Deep Dive
       const designVolume: Record<string, number> = {};
@@ -200,26 +216,57 @@ export default function HistoryPage() {
         </div>
 
         {marketingData.type === "all" ? (
-          <div className="h-96 w-full mt-4">
-            <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Top 10 Customers by Volume (Pcs)</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={marketingData.data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} angle={-45} textAnchor="end" />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar dataKey="volume" fill={BAR_COLOR} radius={[6, 6, 0, 0]} animationDuration={1500}>
-                  {
-                    (marketingData.data as any[]).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? '#818cf8' : BAR_COLOR} />
-                    ))
-                  }
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
+            <div className="h-96 w-full">
+              <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Top Customers by Volume (Pcs)</h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={marketingData.data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} angle={-45} textAnchor="end" />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="volume" fill={BAR_COLOR} radius={[6, 6, 0, 0]} animationDuration={1500}>
+                    {
+                      (marketingData.data as any[]).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#818cf8' : BAR_COLOR} />
+                      ))
+                    }
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="h-96 w-full">
+              <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Loyalty Customers (2+ Orders)</h3>
+              {marketingData.loyaltyData && marketingData.loyaltyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={marketingData.loyaltyData} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} angle={-45} textAnchor="end" />
+                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip 
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value) => [`${value} Orders`, 'Frequency']}
+                    />
+                    <Bar dataKey="count" fill="#fde047" radius={[6, 6, 0, 0]} animationDuration={1500}>
+                      {
+                        (marketingData.loyaltyData as any[]).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? '#facc15' : '#fde047'} />
+                        ))
+                      }
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
+                   No repeat customers yet.
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
