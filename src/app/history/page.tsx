@@ -174,7 +174,7 @@ export default function HistoryPage() {
 
       return { type: "specific", designData, sizeData, totalSpent };
     }
-  }, [selectedCustomerId, orderItems]);
+  }, [selectedCustomerId, orderItems, orders]);
 
   if (role === null) {
      return (
