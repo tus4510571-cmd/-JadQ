@@ -24,6 +24,7 @@ export default function HistoryPage() {
 
   // Marketing Analytics Controls
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
+  const [selectedSizeForDeepDive, setSelectedSizeForDeepDive] = useState<string>("");
 
   const [role, setRole] = useState<'admin' | 'production' | null>(null);
 
@@ -177,6 +178,9 @@ export default function HistoryPage() {
       const comparativeDesignVolume: Record<string, Record<string, number>> = {};
       const comparativeSizeVolume: Record<string, Record<string, number>> = {};
 
+      // 4. Data structures for Size Deep Dive (Design breakdown by size)
+      const sizeDeepDiveVolume: Record<string, Record<string, Record<string, number>>> = {};
+
       orderItems.forEach(item => {
         if (item.order && item.order.customer?.customer_name === targetCustomerName) {
           const design = item.design_number || "Unknown";
@@ -194,8 +198,13 @@ export default function HistoryPage() {
             if (!comparativeDesignVolume[design]) comparativeDesignVolume[design] = {};
             if (!comparativeSizeVolume[size]) comparativeSizeVolume[size] = {};
             
+            
             comparativeDesignVolume[design][seqKey] = (comparativeDesignVolume[design][seqKey] || 0) + qty;
             comparativeSizeVolume[size][seqKey] = (comparativeSizeVolume[size][seqKey] || 0) + qty;
+            
+            if (!sizeDeepDiveVolume[size]) sizeDeepDiveVolume[size] = {};
+            if (!sizeDeepDiveVolume[size][design]) sizeDeepDiveVolume[size][design] = {};
+            sizeDeepDiveVolume[size][design][seqKey] = (sizeDeepDiveVolume[size][design][seqKey] || 0) + qty;
           }
         }
       });
@@ -213,7 +222,16 @@ export default function HistoryPage() {
          ...orderData
       }));
 
-      return { type: "specific", designData, sizeData, totalSpent, comparativeDesignData, comparativeSizeData, orderKeys };
+      const deepDiveSizeData: Record<string, any[]> = {};
+      Object.keys(sizeDeepDiveVolume).forEach(size => {
+        deepDiveSizeData[size] = Object.entries(sizeDeepDiveVolume[size]).map(([design, orderData]) => ({
+          design,
+          ...orderData
+        }));
+      });
+      const availableSizesForDeepDive = Object.keys(deepDiveSizeData).sort();
+
+      return { type: "specific", designData, sizeData, totalSpent, comparativeDesignData, comparativeSizeData, deepDiveSizeData, availableSizesForDeepDive, orderKeys };
     }
   }, [selectedCustomerId, orderItems, orders]);
 
@@ -577,6 +595,48 @@ export default function HistoryPage() {
                     </ResponsiveContainer>
                   </div>
                 </div>
+                
+                {/* Deep Dive: Design Breakdown by Size */}
+                {marketingData.availableSizesForDeepDive && marketingData.availableSizesForDeepDive.length > 0 && (
+                  <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-8">
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-white">Deep Dive: Design Breakdown by Size</h3>
+                      <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-2xl border border-slate-100 dark:border-slate-800">
+                        <span className="text-sm font-medium text-slate-500 pl-2">Analyze Size:</span>
+                        <select 
+                          value={selectedSizeForDeepDive || (marketingData.availableSizesForDeepDive[0] || "")}
+                          onChange={(e) => setSelectedSizeForDeepDive(e.target.value)}
+                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[100px]"
+                        >
+                          {marketingData.availableSizesForDeepDive.map((size: string) => (
+                            <option key={size} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="h-96 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart 
+                          data={marketingData.deepDiveSizeData[selectedSizeForDeepDive || marketingData.availableSizesForDeepDive[0]] || []} 
+                          margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                          <XAxis dataKey="design" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                          <Tooltip 
+                            cursor={{ fill: 'transparent' }}
+                            contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                          />
+                          <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                          {marketingData.orderKeys.map((key: string, idx: number) => (
+                            <Bar key={key} dataKey={key} fill={COLORS[(idx + 4) % COLORS.length]} radius={[4, 4, 0, 0]} animationDuration={1000} />
+                          ))}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
