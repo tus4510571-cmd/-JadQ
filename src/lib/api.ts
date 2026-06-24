@@ -247,5 +247,19 @@ export const api = {
       .insert(itemsToInsert);
 
     if (itemsError) throw itemsError;
+  },
+
+  // Roles
+  getUserRole: async (email: string): Promise<'admin' | 'production'> => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('email', email)
+      .single();
+    
+    if (error || !data) {
+      return 'production'; // Default
+    }
+    return data.role as 'admin' | 'production';
   }
 };

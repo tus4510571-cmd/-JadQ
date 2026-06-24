@@ -25,7 +25,26 @@ export default function HistoryPage() {
   // Marketing Analytics Controls
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
 
+  const [role, setRole] = useState<'admin' | 'production' | null>(null);
+
   useEffect(() => {
+    const fetchUser = async () => {
+       const { createBrowserClient } = await import('@supabase/ssr');
+       const supabase = createBrowserClient(
+         process.env.NEXT_PUBLIC_SUPABASE_URL!,
+         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+       );
+       const { data: { user } } = await supabase.auth.getUser();
+       if (user && user.email) {
+          const userRole = await api.getUserRole(user.email);
+          setRole(userRole);
+          if (userRole !== 'admin') {
+             window.location.href = '/'; // redirect if not admin
+          }
+       }
+    };
+    fetchUser();
+
     Promise.all([
       api.getOrders(),
       api.getOrderItems(),
@@ -36,6 +55,17 @@ export default function HistoryPage() {
       setCustomers(customersData);
     });
   }, []);
+
+  if (role !== 'admin') {
+     return (
+       <div className="flex items-center justify-center min-h-[60vh]">
+         <div className="text-center">
+           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
+           <p className="text-slate-500 mt-2">You do not have permission to view this page.</p>
+         </div>
+       </div>
+     );
+  }
 
   // --- KPIs Calculations ---
   const kpis = useMemo(() => {

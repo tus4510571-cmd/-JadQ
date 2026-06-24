@@ -1,13 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sparkles, Loader2, Calendar } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function AIAnalyticsPage() {
   const [timeRange, setTimeRange] = useState("all-time");
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<'admin' | 'production' | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+       const { createBrowserClient } = await import('@supabase/ssr');
+       const supabase = createBrowserClient(
+         process.env.NEXT_PUBLIC_SUPABASE_URL!,
+         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+       );
+       const { data: { user } } = await supabase.auth.getUser();
+       if (user && user.email) {
+          const userRole = await api.getUserRole(user.email);
+          setRole(userRole);
+          if (userRole !== 'admin') {
+             window.location.href = '/'; // redirect if not admin
+          }
+       }
+    };
+    fetchUser();
+  }, []);
+
+  if (role !== 'admin') {
+     return (
+       <div className="flex items-center justify-center min-h-[60vh]">
+         <div className="text-center">
+           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
+           <p className="text-slate-500 mt-2">You do not have permission to view this page.</p>
+         </div>
+       </div>
+     );
+  }
 
   const handleAnalyze = async () => {
     setLoading(true);
