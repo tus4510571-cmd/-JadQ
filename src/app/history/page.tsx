@@ -328,7 +328,7 @@ export default function HistoryPage() {
                     formatter={(val) => [`${val} THB`, 'Total Sales']}
                   />
                   <Bar dataKey="sales" fill="#60a5fa" radius={[0, 6, 6, 0]} barSize={24} animationDuration={1000}>
-                    <LabelList dataKey="sales" position="right" fill="#475569" fontSize={12} fontWeight="bold" formatter={(val: number) => `${val.toLocaleString()}`} />
+                    <LabelList dataKey="sales" position="right" fill="#475569" fontSize={12} fontWeight="bold" formatter={(val: any) => typeof val === 'number' ? val.toLocaleString() : val} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -358,7 +358,11 @@ export default function HistoryPage() {
                  {salesSummaryData.donutChartData.map((entry, index) => (
                    <Cell key={`cell-${index}`} fill={entry.fill} />
                  ))}
-                 <LabelList dataKey="value" position="outside" fill="#475569" fontSize={12} fontWeight="bold" formatter={(val: number, entry: any) => `${val} (${Math.round((val / (salesSummaryData.donutChartData[0].value + salesSummaryData.donutChartData[1].value || 1)) * 100)}%)`} />
+                 <LabelList dataKey="value" position="outside" fill="#475569" fontSize={12} fontWeight="bold" formatter={(val: any) => {
+                   const num = typeof val === 'number' ? val : Number(val);
+                   const total = salesSummaryData.donutChartData[0].value + salesSummaryData.donutChartData[1].value || 1;
+                   return `${num} (${Math.round((num / total) * 100)}%)`;
+                 }} />
                </Pie>
                <Tooltip 
                  contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
