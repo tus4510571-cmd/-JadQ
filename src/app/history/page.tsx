@@ -56,27 +56,7 @@ export default function HistoryPage() {
     });
   }, []);
 
-  if (role === null) {
-     return (
-       <div className="flex items-center justify-center min-h-[60vh]">
-         <div className="animate-pulse flex flex-col items-center">
-           <div className="h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-           <p className="text-slate-500">Checking permissions...</p>
-         </div>
-       </div>
-     );
-  }
 
-  if (role !== 'admin') {
-     return (
-       <div className="flex items-center justify-center min-h-[60vh]">
-         <div className="text-center">
-           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
-           <p className="text-slate-500 mt-2">You do not have permission to view this page.</p>
-         </div>
-       </div>
-     );
-  }
 
   // --- KPIs Calculations ---
   const kpis = useMemo(() => {
@@ -196,6 +176,27 @@ export default function HistoryPage() {
     }
   }, [selectedCustomerId, orderItems]);
 
+  if (role === null) {
+     return (
+       <div className="flex items-center justify-center min-h-[60vh]">
+         <div className="animate-pulse flex flex-col items-center">
+           <div className="h-8 w-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+           <p className="text-slate-500">Checking permissions...</p>
+         </div>
+       </div>
+     );
+  }
+
+  if (role !== 'admin') {
+     return (
+       <div className="flex items-center justify-center min-h-[60vh]">
+         <div className="text-center">
+           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
+           <p className="text-slate-500 mt-2">You do not have permission to view this page.</p>
+         </div>
+       </div>
+     );
+  }
 
   return (
     <div className="space-y-8 pb-10">
