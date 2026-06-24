@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user && user.email) {
         setEmail(user.email);
-        const userRole = await api.getUserRole(user.email);
+        const userRole = await api.getUserRole(user.email, supabase);
         setRole(userRole);
       }
     };

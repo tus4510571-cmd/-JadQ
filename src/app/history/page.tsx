@@ -36,7 +36,7 @@ export default function HistoryPage() {
        );
        const { data: { user } } = await supabase.auth.getUser();
        if (user && user.email) {
-          const userRole = await api.getUserRole(user.email);
+          const userRole = await api.getUserRole(user.email, supabase);
           setRole(userRole);
           if (userRole !== 'admin') {
              window.location.href = '/'; // redirect if not admin
