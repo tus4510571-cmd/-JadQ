@@ -156,23 +156,61 @@ export default function HistoryPage() {
       // Specific Customer Deep Dive
       const designVolume: Record<string, number> = {};
       const sizeVolume: Record<string, number> = {};
-      let totalSpent = 0; // if we had price, but we use quantity as proxy
+      let totalSpent = 0;
+
+      // 1. Identify the customer's orders and sort chronologically
+      const customerOrders = orders
+        .filter(o => o.customer_id === selectedCustomerId)
+        .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
+        
+      // 2. Map order_id to its sequence label (e.g. Order 1, Order 2)
+      const orderSeqMap: Record<string, string> = {};
+      customerOrders.forEach((o, index) => {
+        orderSeqMap[o.id] = `Order ${index + 1}`;
+      });
+      const orderKeys = customerOrders.map((_, i) => `Order ${i + 1}`);
+
+      // 3. Data structures for comparative grouped bars
+      const comparativeDesignVolume: Record<string, Record<string, number>> = {};
+      const comparativeSizeVolume: Record<string, Record<string, number>> = {};
 
       orderItems.forEach(item => {
         if (item.order && item.order.customer_id === selectedCustomerId) {
           const design = item.design_number || "Unknown";
           const size = item.size || "Unknown";
+          const qty = item.quantity_ordered || 0;
           
-          designVolume[design] = (designVolume[design] || 0) + item.quantity_ordered;
-          sizeVolume[size] = (sizeVolume[size] || 0) + item.quantity_ordered;
-          totalSpent += item.quantity_ordered;
+          // Overall
+          designVolume[design] = (designVolume[design] || 0) + qty;
+          sizeVolume[size] = (sizeVolume[size] || 0) + qty;
+          totalSpent += qty;
+          
+          // Comparative
+          const seqKey = orderSeqMap[item.order_id];
+          if (seqKey) {
+            if (!comparativeDesignVolume[design]) comparativeDesignVolume[design] = {};
+            if (!comparativeSizeVolume[size]) comparativeSizeVolume[size] = {};
+            
+            comparativeDesignVolume[design][seqKey] = (comparativeDesignVolume[design][seqKey] || 0) + qty;
+            comparativeSizeVolume[size][seqKey] = (comparativeSizeVolume[size][seqKey] || 0) + qty;
+          }
         }
       });
 
       const designData = Object.entries(designVolume).map(([name, volume]) => ({ name, volume })).sort((a, b) => b.volume - a.volume);
       const sizeData = Object.entries(sizeVolume).map(([name, volume]) => ({ name, volume })).sort((a, b) => b.volume - a.volume);
 
-      return { type: "specific", designData, sizeData, totalSpent };
+      const comparativeDesignData = Object.entries(comparativeDesignVolume).map(([design, orderData]) => ({
+         design,
+         ...orderData
+      }));
+      
+      const comparativeSizeData = Object.entries(comparativeSizeVolume).map(([size, orderData]) => ({
+         size,
+         ...orderData
+      }));
+
+      return { type: "specific", designData, sizeData, totalSpent, comparativeDesignData, comparativeSizeData, orderKeys };
     }
   }, [selectedCustomerId, orderItems, orders]);
 
@@ -450,40 +488,94 @@ export default function HistoryPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
-            {/* Design Preferences */}
-            <div className="h-80 w-full">
-              <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Most Bought Designs / Patterns</h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={marketingData.designData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                  <XAxis type="number" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Bar dataKey="volume" fill="#a7f3d0" radius={[0, 6, 6, 0]} animationDuration={1000} />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="space-y-12 mt-4">
+            {/* Overall Customer Summary */}
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-800 pb-2">Overall Summary</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Design Preferences */}
+                <div className="h-80 w-full">
+                  <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Most Bought Designs / Patterns</h3>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={marketingData.designData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                      <XAxis type="number" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                      <Tooltip 
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Bar dataKey="volume" fill="#a7f3d0" radius={[0, 6, 6, 0]} animationDuration={1000} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Size Preferences */}
+                <div className="h-80 w-full">
+                  <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Size Preferences (Quantity)</h3>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={marketingData.sizeData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                      <Tooltip 
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Bar dataKey="volume" fill="#fbcfe8" radius={[6, 6, 0, 0]} animationDuration={1000} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
-            
-            {/* Size Preferences */}
-            <div className="h-80 w-full">
-              <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Size Preferences (Quantity)</h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={marketingData.sizeData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Bar dataKey="volume" fill="#fbcfe8" radius={[6, 6, 0, 0]} animationDuration={1000} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+
+            {/* Repeat Purchase Analysis */}
+            {(marketingData.orderKeys && marketingData.orderKeys.length > 1) && (
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 border-b border-slate-200 dark:border-slate-800 pb-2">Repeat Purchase Analysis (By Order Sequence)</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Comparative Design Preferences */}
+                  <div className="h-80 w-full">
+                    <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Design Overlap By Order</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={marketingData.comparativeDesignData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="design" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip 
+                          cursor={{ fill: 'transparent' }}
+                          contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        {marketingData.orderKeys.map((key: string, idx: number) => (
+                          <Bar key={key} dataKey={key} fill={COLORS[idx % COLORS.length]} radius={[4, 4, 0, 0]} animationDuration={1000} />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* Comparative Size Preferences */}
+                  <div className="h-80 w-full">
+                    <h3 className="text-sm font-medium text-slate-500 mb-6 text-center">Size Overlap By Order</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={marketingData.comparativeSizeData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="size" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip 
+                          cursor={{ fill: 'transparent' }}
+                          contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        {marketingData.orderKeys.map((key: string, idx: number) => (
+                          <Bar key={key} dataKey={key} fill={COLORS[(idx + 2) % COLORS.length]} radius={[4, 4, 0, 0]} animationDuration={1000} />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
